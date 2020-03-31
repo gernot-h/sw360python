@@ -19,5 +19,6 @@ __all__ = [
     "SW360Error",
     "SW360OAuth2",
     "Component",
-    "Release"
+    "Release",
+    "Attachment"
 ]
