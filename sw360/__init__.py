@@ -14,4 +14,5 @@ from .sw360error import SW360Error  # noqa: F401
 from .sw360oauth2 import SW360OAuth2  # noqa: F401
 from .sw360_objects import Component, Release
 
-__all__ = ["SW360", "SW360Error", "Component", "Release"]
+__all__ = ["SW360", "SW360Error", "SW360OAuth2",
+           "Component", "Release", "Attachment"]
