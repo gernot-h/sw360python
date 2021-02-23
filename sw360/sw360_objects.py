@@ -7,6 +7,7 @@
 # -------------------------------------------------------------------------------
 
 import re
+import os
 
 """Preview of High-Level, object oriented Python interface to the SW360 REST API.
 For now, this does NOT strive to be stable or complete. Feel free to use it as
@@ -19,7 +20,7 @@ class SW360Resource:
     release etc.
     """
 
-    def __init__(self, json=None, resource_id=None, **kwargs):
+    def __init__(self, json=None, resource_id=None, sw360=None, **kwargs):
         self.details = {}
         """All resource details which are not explicitely supported by the
         constructor parameters of the derived objexts are stored in the
@@ -30,6 +31,9 @@ class SW360Resource:
         """All SW360 resource instances have an `id`. If it is set to `None`,
         the object is yet unknown to SW360 - otherwise, it stores the SW360
         id (release_id, component_id, etc.)."""
+
+        self.sw360 = sw360
+        """SW360 api object"""
 
         for key, value in kwargs.items():
             self.details[key] = value
@@ -42,7 +46,7 @@ class SW360Resource:
         them to `container`."""
         releases = {}
         for release_json in json_list:
-            release = Release(component_id=component_id)
+            release = Release(component_id=component_id, sw360=self.sw360)
             release.from_json(release_json)
             releases[release.id] = release
         return releases
@@ -52,7 +56,7 @@ class SW360Resource:
         them to `container`."""
         attachments = {}
         for attachment_json in json_list:
-            attachment = Attachment(resources=resources)
+            attachment = Attachment(resources=resources, sw360=self.sw360)
             attachment.from_json(attachment_json)
             attachments[attachment.id] = attachment
         return attachments
@@ -111,22 +115,24 @@ class Release(SW360Resource):
     :param version: the actual version
     :param downloadurl: URL the release was downloaded from
     :param release_id: id of the release (if exists in SW360 already)
+    :param sw360: your SW360 instance for interacting with the API
     :param kwargs: additional relase details as specified in the SW360 REST API
     :type json: SW360 JSON object
     :type component_id: string
     :type version: string
     :type downloadurl: string
     :type release_id: string
+    :type sw360: instance from SW360 class
     :type kwargs: dictionary
     """
     def __init__(self, json=None, release_id=None, component_id=None,
-                 version=None, downloadurl=None, **kwargs):
+                 version=None, downloadurl=None, sw360=None, **kwargs):
         self.attachments = {}
 
         self.component_id = component_id
         self.version = version
         self.downloadurl = downloadurl
-        super().__init__(json, release_id, **kwargs)
+        super().__init__(json, release_id, sw360=sw360, **kwargs)
 
     def from_json(self, json):
         """Parse release JSON object from SW360 REST API. The component it
@@ -141,6 +147,21 @@ class Release(SW360Resource):
         super().from_json(
             json,
             copy_attributes=("name", "version", "downloadurl"))
+
+    def get(self, sw360=None, id_=None):
+        """Retrieve/update release from SW360."""
+        if sw360:
+            self.sw360 = sw360
+        if id_:
+            self.id = id_
+        self.from_json(self.sw360.get_release(self.id))
+        return self
+
+    def get_component(self, sw360=None):
+        """Retrieve/update component of this release."""
+        if sw360:
+            self.sw360 = sw360
+        return Component().get(self.sw360, self.component_id)
 
     def __repr__(self):
         """Representation string."""
@@ -160,7 +181,7 @@ class Attachment(SW360Resource):
 
     For JSON parsing, please read documentation of from_json() method.
 
-    :param json: create release from SW360 JSON object by calling from_json()
+    :param json: create it from SW360 JSON object by calling from_json()
     :param attachment_id: SW360 id of the attachment (if it exists already)
     :param resources: dictionary of SW360 resource objects the attachment belongs to
                       (instances of Release(), Component() or Project() with id as key)
@@ -169,6 +190,7 @@ class Attachment(SW360Resource):
     :param attachment_type: one of "DOCUMENT", "SOURCE", "SOURCE_SELF"
            "CLEARING_REPORT", "COMPONENT_LICENSE_INFO_XML", "BINARY",
            "BINARY_SELF", "LICENSE_AGREEMENT", "README_OSS"
+    :param sw360: your SW360 instance for interacting with the API
     :param kwargs: additional relase details as specified in the SW360 REST API
     :type json: SW360 JSON object
     :type attachment_id: string
@@ -176,16 +198,17 @@ class Attachment(SW360Resource):
     :type filename: string
     :type sha1: string
     :type attachment_type: string
+    :type sw360: instance from SW360 class
     :type kwargs: dictionary
     """
     def __init__(self, json=None, attachment_id=None, resources={},
-                 filename=None, sha1=None, attachment_type=None, **kwargs):
+                 filename=None, sha1=None, attachment_type=None, sw360=None, **kwargs):
         self.resources = resources
         self.filename = filename
         self.sha1 = sha1
         self.attachment_type = attachment_type
         self.download_link = None
-        super().__init__(json, attachment_id, **kwargs)
+        super().__init__(json, attachment_id, sw360, **kwargs)
 
     def from_json(self, json):
         """Parse attachment JSON object from SW360 REST API. For now, we don't
@@ -202,6 +225,38 @@ class Attachment(SW360Resource):
                              "createdBy", "createdTeam", "createdComment", "createdOn",
                              "checkedBy", "checkedTeam", "checkedComment", "checkedOn",
                              "checkStatus"))
+
+    def get(self, sw360=None, id_=None):
+        """Retrieve/update attachment from SW360."""
+        if sw360:
+            self.sw360 = sw360
+        if id_:
+            self.id = id_
+        self.from_json(self.sw360.get_attachment(self.id))
+        return self
+
+    def get_releases(self, sw360=None):
+        """Retrieve/update releases of this attachment."""
+        if sw360:
+            self.sw360 = sw360
+        releases = [
+            Release().get(self.sw360, id_)
+            for id_ in self.releases
+        ]
+        return releases
+
+    def download(self, target_path, filename=None):
+        """download an attachment to local file.
+
+        :param target_path: path where to store the attachment
+        :type target_path: str
+        :param filename: local filename. If not given, use the filename stored in SW360
+        :type filename: str, optional
+        """
+        if filename is None:
+            filename = os.path.basename(self.filename)
+        self.sw360.download_attachment(os.path.join(target_path, filename),
+                                       self.download_link)
 
     def __repr__(self):
         """Representation string."""
@@ -226,6 +281,7 @@ class Component(SW360Resource):
     :param homepage: homepage of the component
     :param component_type: one of "INTERNAL", "OSS", "COTS", "FREESOFTWARE",
                            "INNER_SOURCE", "SERVICE", "CODE_SNIPPET"
+    :param sw360: your SW360 instance for interacting with the API
     :param kwargs: additional component details as specified in the SW360 REST API
     :type json: SW360 JSON object
     :type component_id: string
@@ -233,10 +289,11 @@ class Component(SW360Resource):
     :type description: string
     :type homepage: string
     :type component_type: string
+    :type sw360: instance from SW360 class
     :type kwargs: dictionary
     """
     def __init__(self, json=None, component_id=None, name=None, description=None,
-                 homepage=None, component_type=None, **kwargs):
+                 homepage=None, component_type=None, sw360=None, **kwargs):
         self.releases = {}
         self.attachments = {}
 
@@ -244,7 +301,7 @@ class Component(SW360Resource):
         self.description = description
         self.homepage = homepage
         self.component_type = component_type
-        super().__init__(json, component_id, **kwargs)
+        super().__init__(json, component_id, sw360, **kwargs)
 
     def from_json(self, json):
         """Parse component JSON object from SW360 REST API. Information for
@@ -262,6 +319,15 @@ class Component(SW360Resource):
             json,
             copy_attributes=("name", "description", "homepage",
                              "componentType"))
+
+    def get(self, sw360=None, id_=None):
+        """Retrieve/update component from SW360."""
+        if sw360:
+            self.sw360 = sw360
+        if id_:
+            self.id = id_
+        self.from_json(self.sw360.get_component(self.id))
+        return self
 
     def __repr__(self):
         """Representation string."""
@@ -290,6 +356,7 @@ class Project(SW360Resource):
                        "EVERYONE"
     :param project_type: one of "CUSTOMER", "INTERNAL", "PRODUCT", "SERVICE",
                          "INNER_SOURCE"
+    :param sw360: your SW360 instance for interacting with the API
     :param kwargs: additional project details as specified in the SW360 REST API
     :type json: SW360 JSON object
     :type project_id: string
@@ -298,11 +365,12 @@ class Project(SW360Resource):
     :type description: string
     :type visibility: string
     :type project_type: string
+    :type sw360: instance from SW360 class
     :type kwargs: dictionary
     """
     def __init__(self, json=None, project_id=None, name=None, version=None,
                  description=None, visibility=None, project_type=None,
-                 **kwargs):
+                 sw360=None, **kwargs):
         self.releases = {}
 
         self.name = name
@@ -310,7 +378,7 @@ class Project(SW360Resource):
         self.description = description
         self.visibility = visibility
         self.project_type = project_type
-        super().__init__(json, project_id, **kwargs)
+        super().__init__(json, project_id, sw360, **kwargs)
 
     def from_json(self, json):
         """Parse project JSON object from SW360 REST API. Information for
@@ -327,6 +395,15 @@ class Project(SW360Resource):
             json,
             copy_attributes=("name", "description", "version", "visibility",
                              "projectType"))
+
+    def get(self, sw360=None, id_=None):
+        """Retrieve/update project from SW360."""
+        if sw360:
+            self.sw360 = sw360
+        if id_:
+            self.id = id_
+        self.from_json(self.sw360.get_project(self.id))
+        return self
 
     def __repr__(self):
         """Representation string."""
