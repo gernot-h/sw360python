@@ -72,9 +72,12 @@ class SW360Resource:
                 links_value,
                 resources=[self])
         elif links_key == "sw360:releases":
+            component_id = None
+            if isinstance(self, Component):
+                component_id = self.id
             self.releases = self._parse_release_list(
                 links_value,
-                component_id=self.id)
+                component_id=component_id)
         elif links_key == "self":
             self.id = links_value["href"].split("/")[-1]
         else:
