@@ -5,6 +5,19 @@ from sw360 import Project
 
 
 class Sw360ObjTestProject(Sw360ObjTestBase):
+    def test_repr(self):
+        prj = Project(project_id="123", name="TestPrj", version="12")
+        prj = eval(repr(prj))
+        assert prj.id == "123"
+        assert prj.name == "TestPrj"
+        assert prj.version == "12"
+        self.assertEqual(str(prj), "TestPrj 12 (123)")
+
+        prj = Project()
+        prj = eval(repr(prj))
+        assert prj.id is None
+        assert prj.name is None
+
     @responses.activate
     def test_get_project(self):
         responses.add(
@@ -24,6 +37,8 @@ class Sw360ObjTestProject(Sw360ObjTestBase):
         self.assertEqual(proj.version, "11.0")
         self.assertEqual(len(proj.releases), 1)
         self.assertIsNone(proj.releases["7c4"].component_id)
+
+        self.assertEqual(str(proj), "MyProj 11.0 (123)")
 
 
 if __name__ == "__main__":

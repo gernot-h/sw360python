@@ -5,6 +5,19 @@ from sw360 import Component
 
 
 class Sw360ObjTestComponent(Sw360ObjTestBase):
+    def test_repr(self):
+        comp = Component(component_id="123", name="TestCmp", homepage="http://www",
+                         component_type="INTERNAL")
+        comp = eval(repr(comp))
+        assert comp.id == "123"
+        assert comp.name == "TestCmp"
+        self.assertEqual(str(comp), "TestCmp (123)")
+
+        comp = Component()
+        comp = eval(repr(comp))
+        assert comp.id is None
+        assert comp.name is None
+
     @responses.activate
     def test_get_component(self):
         responses.add(

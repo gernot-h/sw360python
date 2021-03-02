@@ -102,6 +102,20 @@ class SW360Resource:
             else:
                 self.details[key] = value
 
+    def __repr__(self):
+        repr_ = []
+        for k, v in self.__dict__.items():
+            if v is None:
+                continue
+            if (k in ("name", "version", "filename", "attachment_type")
+                    or k.endswith("_id")):
+                repr_.append(f'{k}={v!r}')
+            if k == "id":
+                repr_.append(f'{self.__class__.__name__.lower()}_id={v!r}')
+        return (f'{self.__class__.__name__}('
+                + ", ".join(repr_)
+                + ")")
+
 
 class Release(SW360Resource):
     """A release is the SW360 abstraction for a single version of a component.
@@ -129,11 +143,12 @@ class Release(SW360Resource):
     :type kwargs: dictionary
     """
     def __init__(self, json=None, release_id=None, component_id=None,
-                 version=None, downloadurl=None, sw360=None, **kwargs):
+                 name=None, version=None, downloadurl=None, sw360=None, **kwargs):
         self.attachments = {}
 
-        self.component_id = component_id
+        self.name = name
         self.version = version
+        self.component_id = component_id
         self.downloadurl = downloadurl
         super().__init__(json, release_id, sw360=sw360, **kwargs)
 
@@ -166,9 +181,8 @@ class Release(SW360Resource):
             self.sw360 = sw360
         return Component().get(self.sw360, self.component_id)
 
-    def __repr__(self):
-        """Representation string."""
-        return "<Release %s %s id:%s>" % (self.name, self.version, self.id)
+    def __str__(self):
+        return f'{self.name} {self.version} ({self.id})'
 
 
 class Attachment(SW360Resource):
@@ -207,9 +221,9 @@ class Attachment(SW360Resource):
     def __init__(self, json=None, attachment_id=None, resources={},
                  filename=None, sha1=None, attachment_type=None, sw360=None, **kwargs):
         self.resources = resources
+        self.attachment_type = attachment_type
         self.filename = filename
         self.sha1 = sha1
-        self.attachment_type = attachment_type
         self.download_link = None
         super().__init__(json, attachment_id, sw360, **kwargs)
 
@@ -261,9 +275,8 @@ class Attachment(SW360Resource):
         self.sw360.download_attachment(os.path.join(target_path, filename),
                                        self.download_link)
 
-    def __repr__(self):
-        """Representation string."""
-        return "<Attachment %s id:%s>" % (self.filename, self.id)
+    def __str__(self):
+        return f'{self.filename} ({self.id})'
 
 
 class Component(SW360Resource):
@@ -332,9 +345,8 @@ class Component(SW360Resource):
         self.from_json(self.sw360.get_component(self.id))
         return self
 
-    def __repr__(self):
-        """Representation string."""
-        return "<Component %s id:%s>" % (self.name, self.id)
+    def __str__(self):
+        return f'{self.name} ({self.id})'
 
 
 class Project(SW360Resource):
@@ -408,6 +420,5 @@ class Project(SW360Resource):
         self.from_json(self.sw360.get_project(self.id))
         return self
 
-    def __repr__(self):
-        """Representation string."""
-        return "<Project %s id:%s>" % (self.name, self.id)
+    def __str__(self):
+        return f'{self.name} {self.version} ({self.id})'
