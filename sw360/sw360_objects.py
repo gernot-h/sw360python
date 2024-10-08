@@ -1,9 +1,10 @@
 # -------------------------------------------------------------------------------
-# (c) 2019-2020 Siemens AG
+# (c) 2019-2024 Siemens AG
 # All Rights Reserved.
 # Author: gernot.hillier@siemens.com
 #
-# Licensed as Siemens Inner Source, see top-level License.md file for details.
+# Licensed under the MIT license.
+# SPDX-License-Identifier: MIT
 # -------------------------------------------------------------------------------
 
 import re
